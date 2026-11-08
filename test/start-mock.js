@@ -64,9 +64,11 @@ async function main() {
     incomplete: [http('missing-agent-measurements', 'incomplete.invalid')],
     'api-error': [http('native-api-error', 'api-error.invalid')]
   };
+  // The incomplete case must start the real CLI and observe partial results
+  // before its deadline, so it needs the same startup budget as the other cases.
   for (const [name, tests] of Object.entries(suites)) {
     await fsp.writeFile(path.join(smoke, `${name}.json`), JSON.stringify({
-      version: 1, accountGroupId: '123456', timeout: name === 'incomplete' ? '30s' : '90s', pollInterval: '100ms', tests
+      version: 1, accountGroupId: '123456', timeout: '90s', pollInterval: '100ms', tests
     }, null, 2));
   }
   if (process.env.GITHUB_OUTPUT) {
