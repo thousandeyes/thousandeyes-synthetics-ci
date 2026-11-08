@@ -23,8 +23,10 @@ func TestRunPreservesNativeConfigurationForBothTypedAdapters(t *testing.T) {
 		t.Skip("set TE_TEST_API_CLI_PATH to run official API CLI integration tests")
 	}
 	t.Setenv("TE_API_CLI_PATH", backend)
+	// Allow startup time for four real CLI subprocesses on slower Windows runners.
+	// This test checks payload preservation, not execution deadlines.
 	config := loadTypedSuite(t, `{
-		"version":1,"accountGroupId":"123","timeout":"30s","pollInterval":"1ms","tests":[
+		"version":1,"accountGroupId":"123","timeout":"90s","pollInterval":"1ms","tests":[
 			{"name":"typed-http","type":"http-server","config":{
 				"url":"https://service.invalid/health?literal=keep","testName":"original HTTP label","followRedirects":false,
 				"agents":[{"agentId":"6","sourceIpAddress":"192.0.2.10","futureAgentOption":{"enabled":false,"count":0}}],
