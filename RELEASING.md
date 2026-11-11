@@ -1,43 +1,33 @@
-# Releases and version pinning
+# Releases
 
 ## Consumer version pins
 
-| Component | Pin |
+| Component | Use |
 | --- | --- |
-| GitHub Action | A reviewed full 40-character commit SHA. |
-| Native runner | A reviewed source commit, or an exact published `runner-version`. |
-| Official CLI backend | The full source commit in [backend.json](backend.json). |
-| Container | The image digest from your registry. |
+| GitHub Action | A reviewed full commit SHA. |
+| Runner | A reviewed source commit or exact published `runner-version`, without a `v` prefix. |
+| Official CLI backend | The source commit in [backend.json](backend.json). |
+| Container | An image digest. |
 
-Action and runner pins are independent. The [GitHub Actions example](examples/github-actions/ci.yml) builds the runner and loads the Action from one pinned checkout. Other Actions also use full commit SHAs; see [GitHub's secure use guidance](https://docs.github.com/en/actions/reference/security/secure-use#using-third-party-actions).
+The [GitHub Actions example](examples/github-actions/ci.yml) builds the runner and loads the Action from the same pinned checkout. Otherwise, select the Action and runner versions separately.
 
-`runner-version` accepts exact `X.Y.Z` or prerelease versions without a `v` prefix. `latest`, ranges, and build metadata are unsupported. Choose an available [release](https://github.com/thousandeyes/thousandeyes-synthetics-ci/releases); the `package.json` version does not establish one, and npm publication is disabled.
+While the repository is private, use a source build with `runner-path`; release downloads do not support GitHub authentication. Archive SHA-256 checksums detect mismatches with the release manifest, but do not establish publisher identity.
 
-Release downloads do not support GitHub authentication. While this repository is private, build from an authenticated checkout and use `runner-path`. The ThousandEyes `api-token` does not authenticate GitHub downloads.
+## Update dependencies
 
-The installer checks archive SHA-256 values against the manifest from the same release. These checksums detect mismatches; they are not signatures or provenance attestations.
+Review changes to `backend.json`, `package-lock.json`, `go.mod`, `go.sum`, and the backend's dependencies. Rebuild `dist/` after Action dependency changes, run the [development checks](DEVELOPMENT.md#validate-changes), and review [required license notices](docs/licensing.md). Leave `TE_API_CLI_SOURCE` unset for releases.
 
-## Dependencies and distribution
+## Publish a release
 
-Review changes to [backend.json](backend.json), [package-lock.json](package-lock.json), [go.mod](go.mod), [go.sum](go.sum), and the backend's own dependencies. Rebuild `dist/` after Action dependency changes and rerun the [development checks](DEVELOPMENT.md#validate-changes). Leave `TE_API_CLI_SOURCE` unset for releases.
-
-Archives contain both executables, the root `LICENSE`, `NOTICE`, `README.md`, and `backend.json`. The image includes both executables and the root license, notice, and backend metadata. Packaging does not automatically collect every third-party notice; review and include required texts as described in [licensing](docs/licensing.md).
-
-The GoReleaser tool version range, hosted runner images, and Docker base tags can change. Source pins alone do not make the complete build reproducible.
-
-## Maintainer release procedure
-
-Pushing a version tag starts the [release workflow](.github/workflows/release.yml) immediately. Required approvals and selection of a reviewed `main` commit are maintainer responsibilities; the workflow does not enforce those gates.
-
-1. Select a reviewed `main` commit with all [CI checks](.github/workflows/ci.yml) passing. Complete required security, legal, licensing, and publishing approvals, and verify dependency pins, generated files, and distribution notices.
-2. Choose an unused exact version without a `v` prefix; preview backends require a prerelease suffix. Set `VERSION` and `REVIEWED_SHA`, then tag the reviewed commit:
+1. Select a reviewed `main` commit with passing CI and complete the required publishing approvals. Pushing a version tag starts publication immediately.
+2. Choose an unused `X.Y.Z` version, or a prerelease version when using a preview backend. Set `VERSION` and `REVIEWED_SHA`, then run:
 
    ```bash
    git tag -a "$VERSION" "$REVIEWED_SHA" -m "Release $VERSION"
    git push origin "refs/tags/$VERSION"
    ```
 
-3. Check the workflow results. Tests, bundle verification, and container smoke precede publication. The workflow creates a GitHub prerelease with six native archives (Linux, macOS, and Windows on amd64/arm64) and checksums, then publishes the Linux amd64/arm64 image to `ghcr.io/thousandeyes/thousandeyes-synthetics-ci:<version>`.
-4. Verify the installed runner version, both publication results, and consumer access. Record the Action SHA, runner version, backend commit, and image digest before announcing the release.
+3. Check the [release workflow](.github/workflows/release.yml). It tests and publishes native bundles and checksums, then the container image. GitHub releases are currently marked prerelease.
+4. Verify installation, the runner version, and consumer access. Record the Action SHA, runner version, backend commit, and image digest before announcing the release.
 
-All GitHub releases are currently marked prerelease, including plain `X.Y.Z` tags. Native publication can succeed before a container push fails. Inspect existing assets before retrying; correct published versions with a new release rather than moving a tag or replacing assets.
+Native publication can succeed before a container push fails. Check both results before retrying. Correct a published version with a new release rather than moving its tag or replacing assets.
