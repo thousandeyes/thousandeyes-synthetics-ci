@@ -1,14 +1,64 @@
 # Platform setup
 
-Every example uses a version 1 suite and `TE_TOKEN` from the platform's secret store. Replace sample account groups, agents, targets, and thresholds before executing it. These examples create real instant tests and consume applicable units.
+Copy the [example suite](../examples/synthetics/thousandeyes-ci.json) to your application repository as `thousandeyes-ci.json`, then replace its account group, agents, targets, and thresholds. Supply a ThousandEyes API token through your platform's secret store. For editor completion, copy the [JSON Schema](../schemas/thousandeyes-ci.schema.json) and update the suite's `$schema` path. See [configuration and results](configuration.md) for the shared contract.
 
-## Jenkins and GitLab
+Instant tests consume applicable units. Private targets require Enterprise Agents that can reach them. Protect suites and reports containing private target or agent information.
 
-Build the native bundle as described in the [README](../README.md#build-from-source). Install both executables together on the worker's `PATH`. Copy the example suite to the application repository as `thousandeyes-ci.json`.
+## Developer terminal
 
-For Jenkins, adapt the [Jenkinsfile](../examples/jenkins/Jenkinsfile) and create a secret-text credential named `thousandeyes-token`. For GitLab, copy [ci.yml](../examples/gitlab/ci.yml) to `.gitlab-ci.yml`, configure a masked/protected `TE_TOKEN`, and select an appropriately tagged Linux shell runner. The GitLab example runs only from the web UI. Protected variables require an eligible protected ref.
+Build the [native bundle](../DEVELOPMENT.md#build-the-native-bundle), or install a reviewed bundle supplied by your maintainer. Keep both executables together and add their directory to `PATH`. Windows bundles use `.exe` suffixes.
 
-The shell command's exit status controls the gate. Both examples archive JSON/JUnit files after a failed check. A separate JUnit gate must account for non-blocking tests because their assertions remain XML failures even when the runner exits successfully. Jenkins, GitLab, and Argo examples have not been executed in your deployment environment.
+Supply `TE_TOKEN` through your secret manager or shell environment, then run:
+
+```bash
+te-synthetics run-tests --config thousandeyes-ci.json \
+  --json-report results.json --junit-report results.xml
+```
+
+The runner resolves its backend from `--api-cli-path`, then `TE_API_CLI_PATH`, then the sibling `thousandeyes` executable, then `PATH`. An override must support the API options and response contract documented in [architecture](architecture.md#api-backend-contract).
+
+The command's exit status controls the gate on every platform. A separate JUnit gate must account for non-blocking tests: their assertions remain XML failures even when the runner exits successfully. See [results and exit status](configuration.md#results-and-exit-status).
+
+## GitHub Actions
+
+Copy the [workflow](../examples/github-actions/ci.yml) into your application's `.github/workflows/` directory and commit the configured suite as `thousandeyes-ci.json`. Add a repository secret named `TE_TOKEN`. The example runs manually through `workflow_dispatch`; put it on the default branch to make it available in the Actions interface.
+
+The workflow builds the runner and loads the local Action from one pinned checkout. Update `TE_SYNTHETICS_REF` after reviewing the replacement commit. See [version pinning](../RELEASING.md#consumer-version-pins) for separately installed runners and releases.
+
+To check out this private source from another repository, add `TE_SYNTHETICS_READ_TOKEN` with **Contents: read** access and any required organization authorization. The application's `GITHUB_TOKEN` cannot read another private repository. Public or same-repository checkouts use the default token. Checkout disables persisted credentials; the ThousandEyes token is supplied only to the test step.
+
+The example uses `runner-path` and needs no published release. For `runner-version` requirements and private-download limits, see [release guidance](../RELEASING.md#consumer-version-pins).
+
+### Inputs
+
+| Input | Default | Purpose |
+| --- | --- | --- |
+| `api-token` | Required | ThousandEyes API bearer token from a secret. |
+| `config-path` | `thousandeyes-ci.json` | Suite file relative to the workspace, or absolute. |
+| `runner-path` | Empty | Absolute path to a managed `te-synthetics` executable. |
+| `runner-version` | Empty | Exact published release from this repository; required if no runner path is supplied. |
+| `api-cli-path` | Bundled backend | Absolute path to a compatible official API CLI override. |
+| `account-group-id` | Suite value | Override the account group. |
+| `timeout`, `poll-interval` | Suite values | Positive duration overrides such as `5m` and `5s`. |
+| `api-base-url` | `https://api.thousandeyes.com` | API origin; HTTP is permitted only for loopback test servers. |
+
+`cli-version` and `cli-path` are deprecated aliases for `runner-version` and `runner-path`. Conflicting aliases are rejected. [action.yml](../action.yml) defines the complete input and output contract.
+
+### Outputs and reports
+
+The Action exposes `run-id`, `exit-code`, `json-report`, `junit-report`, and test counts (`passed`, `failed`, `non-blocking-failed`, `skipped`, `timed-out`, `errors`). Report paths are reserved before execution; files exist only if the runner produces them. The example uses `if: always()` to upload reports after failed checks.
+
+The job summary shows test and agent results, measurements, failure reasons, and ThousandEyes links. It prioritizes failures when space is limited; JSON/JUnit artifacts retain all results. The runner's exit decision controls the gate.
+
+The token is masked and passed through `TE_TOKEN`, never command arguments. Raw child output is not forwarded to logs, and summary values are bounded, sanitized, token-redacted, and escaped.
+
+## Jenkins
+
+Follow the [terminal setup](#developer-terminal) on the worker. Adapt the [Jenkinsfile](../examples/jenkins/Jenkinsfile) and create a secret-text credential named `thousandeyes-token`. The pipeline archives JSON/JUnit reports after failed checks.
+
+## GitLab CI
+
+Follow the [terminal setup](#developer-terminal) on a Linux shell runner. Copy [ci.yml](../examples/gitlab/ci.yml) to `.gitlab-ci.yml`, configure a masked/protected `TE_TOKEN`, and match the runner tags. The example runs from the web UI and archives reports after failed checks. Protected variables require an eligible protected ref.
 
 ## Container
 
@@ -24,21 +74,29 @@ docker run --rm --read-only --cap-drop=ALL \
   --config /config/thousandeyes-ci.json --json
 ```
 
-The container entrypoint is `te-synthetics`. Both native executables are included, so no Node, shell, or writable temporary directory is required at runtime. `--json` writes a sanitized report to stdout. For report files, mount a writable output volume and pass its paths to `--json-report` and `--junit-report`.
+Run from a reviewed checkout with Node.js and Docker installed, and supply `TE_TOKEN` in the environment. The image includes both executables and uses `te-synthetics` as its entrypoint. `--json` writes the report to stdout. To save files, mount a writable output volume and set `--json-report` and `--junit-report`.
 
-Release images stamp the release tag into `te-synthetics --version`. Local builds report `dev` unless you pass `--build-arg RUNNER_VERSION=<version>` to `docker build`.
+Release images stamp the release tag into `te-synthetics --version`. Local builds report `dev` unless you pass `--build-arg RUNNER_VERSION=<version>` to `docker build`. See [release guidance](../RELEASING.md) for image publishing and dependency review.
 
-## Argo CD and Argo Rollouts
+### Kubernetes prerequisites
 
-Build and publish the image to your own registry, then pin its digest in the [Argo CD PostSync Job](../examples/argocd/post-sync-job.yaml) or pass it to the [Argo Rollouts AnalysisTemplate](../examples/synthetics/argo-rollouts/analysis-template.yaml). Create a Secret named `thousandeyes-api` with a `token` key, and create the suite ConfigMap:
+Build and publish the image to your own registry, then pin its digest in your Argo configuration. Create a Secret named `thousandeyes-api` with a `token` key, and create the suite ConfigMap:
 
 ```bash
 kubectl create configmap thousandeyes-canary-suite \
   --from-file=thousandeyes-ci.json=examples/synthetics/thousandeyes-ci.json
 ```
 
-The Job, ConfigMap, and Secret must be in the same namespace. Argo CD runs the example after synchronization and treats a failed Job as a failed hook. Argo Rollouts uses the Job's completion to decide whether the analysis succeeded; apply the template and add the [rollout step](../examples/synthetics/argo-rollouts/rollout-step.yaml), supplying its image, account group, suite ConfigMap, and Secret arguments. A ClusterAnalysisTemplate can use the same spec when appropriate.
-
-The examples disable Job retries to avoid creating duplicate instant tests and set the outer Job deadline longer than the runner's five-minute deadline. Keep completed Job logs or export reports to your evidence store; these examples do not add external artifact storage.
+The Job, ConfigMap, and Secret must be in the same namespace. The examples disable Job retries to avoid creating duplicate instant tests and set the outer Job deadline longer than the runner's five-minute deadline. Keep completed Job logs or export reports to your evidence store; these examples do not add external artifact storage.
 
 Configure the suite target to reach the canary or preview revision explicitly. A weighted shared endpoint can route to the stable revision. A Job running inside Kubernetes does not give remote agents access to cluster-internal Services. Select Enterprise Agents with connectivity to private targets.
+
+## Argo CD
+
+Complete the [Kubernetes prerequisites](#kubernetes-prerequisites), then adapt the [PostSync Job](../examples/argocd/post-sync-job.yaml). Argo CD runs it after synchronization and treats a failed Job as a failed hook.
+
+## Argo Rollouts
+
+Complete the [Kubernetes prerequisites](#kubernetes-prerequisites), apply the [AnalysisTemplate](../examples/synthetics/argo-rollouts/analysis-template.yaml), and add the [rollout step](../examples/synthetics/argo-rollouts/rollout-step.yaml). Supply the image, account group, suite ConfigMap, and Secret arguments. Argo Rollouts uses the Job's completion to decide whether the analysis succeeded.
+
+Jenkins, GitLab, and Argo runtime examples require validation in your own deployment environment; they are not exercised end to end by this repository's CI.

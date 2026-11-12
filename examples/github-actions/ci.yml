@@ -1,0 +1,56 @@
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+# SPDX-License-Identifier: Apache-2.0
+
+name: Synthetic checks
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Reviewed source revision for both the Action and native bundle.
+      TE_SYNTHETICS_REF: 68db8de4332bcea24b7ce6830e955de827c86fec
+    steps:
+      - name: Check out application and suite
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check out pinned synthetics source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: thousandeyes/thousandeyes-synthetics-ci
+          ref: ${{ env.TE_SYNTHETICS_REF }}
+          path: .te-synthetics
+          # Required for a different private repository; omit once public.
+          token: ${{ secrets.TE_SYNTHETICS_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: .te-synthetics/go.mod
+          cache-dependency-path: .te-synthetics/go.sum
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Build native bundle
+        working-directory: .te-synthetics
+        run: node scripts/build-native.js
+      - name: Run synthetic checks
+        id: synthetics
+        # Use the Action from the same pinned checkout as the runner.
+        uses: ./.te-synthetics
+        with:
+          api-token: ${{ secrets.TE_TOKEN }}
+          config-path: thousandeyes-ci.json
+          runner-path: ${{ github.workspace }}/.te-synthetics/build/bin/te-synthetics
+      - name: Save reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: thousandeyes-results
+          path: |
+            ${{ steps.synthetics.outputs.json-report }}
+            ${{ steps.synthetics.outputs.junit-report }}
+          if-no-files-found: warn
