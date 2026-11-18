@@ -2,7 +2,29 @@
 
 Copy the [example suite](../examples/synthetics/thousandeyes-ci.json) to your application repository as `thousandeyes-ci.json`, then replace its account group, agents, targets, and thresholds. Supply a ThousandEyes API token through your platform's secret store. For editor completion, copy the [JSON Schema](../schemas/thousandeyes-ci.schema.json) and update the suite's `$schema` path. See [configuration and results](configuration.md) for the shared contract.
 
-Instant tests consume applicable units. Private targets require Enterprise Agents that can reach them. Protect suites and reports containing private target or agent information.
+Instant tests consume applicable units. Private targets require Enterprise Agents that can reach them. Review [report access and retention](#report-access-and-retention) before running checks with private data.
+
+## Report access and retention
+
+Reports intentionally retain test/account/agent identifiers, names, targets, measurements, and result links. Token redaction and URL sanitization do not anonymize this metadata. Use an appropriately restricted private project for confidential live runs. Public repositories should use fake test data or data explicitly approved for public sharing.
+
+GitHub artifacts are downloadable by [signed-in repository readers](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts). The Action also writes metadata to the job summary, and CLI output can enter logs. Removing the artifact upload does not hide the summary. Review the repository's audience before running checks.
+
+| Platform | Access and cleanup |
+| --- | --- |
+| GitHub Actions | The example and repository CI use `retention-days: 7`. Check the uploaded artifact's actual expiry and applicable repository/organization limits. See [artifact retention](https://github.com/actions/upload-artifact#retention-period). |
+| GitLab CI | The example uses `expire_in: 7 days`. Review project/job access and [keep-latest-successful settings](https://docs.gitlab.com/ci/jobs/job_artifacts/#keep-artifacts-from-most-recent-successful-jobs), which can retain artifacts beyond that period. |
+| Jenkins | Restrict job access and configure build/log/artifact retention and workspace cleanup. Archiving a report alone does not configure deletion. |
+| Argo / Kubernetes | The examples print JSON to pod logs. Restrict log access and configure Job cleanup and [centralized log retention](https://kubernetes.io/docs/concepts/cluster-administration/logging/) separately. |
+| Developer terminal | Write reports to restricted paths. The owner controls deletion of files and any captured terminal output. |
+
+Seven days is a sample artifact lifetime, not a Cisco retention policy. Artifact expiry does not shorten retention for logs, summaries, workspaces, committed suites, or exported copies.
+
+Before using an integration with private data:
+
+1. Run a job with non-confidential data; this repository's [CI](../.github/workflows/ci.yml) uses a local mock API. Record its run ID or URL and reviewed commit SHA.
+2. Check artifact and run-page access for intended readers, including denied access with a test account. Verify the created artifact's expiry, rather than relying only on workflow configuration.
+3. Record the separate log/summary retention and workspace cleanup settings, including any keep-latest or manual-retention exceptions. Repeat the checks when permissions, repository visibility, or retention settings change.
 
 ## Developer terminal
 
