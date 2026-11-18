@@ -31,7 +31,15 @@ type instantResponse struct {
 
 func Run(ctx context.Context, config Config, options Options) (report Report, err error) {
 	report = Report{Version: 1, StartedAt: time.Now().UTC(), Tests: make([]TestResult, 0, len(config.Tests))}
-	defer func() { report.FinishedAt = time.Now().UTC() }()
+	defer func() {
+		report.FinishedAt = time.Now().UTC()
+		// All report writers must receive safe names, including unstarted tests.
+		if options.Token != "" {
+			for index := range report.Tests {
+				report.Tests[index].Name = strings.ReplaceAll(report.Tests[index].Name, options.Token, "[REDACTED]")
+			}
+		}
+	}()
 	if err := config.validate(); err != nil {
 		return report, err
 	}
