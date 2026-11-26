@@ -93,7 +93,7 @@ async function readReport(filename) {
   const rules = new Set(['blocking', 'non-blocking', 'skipped']);
   for (const test of report.tests) {
     if (!test || typeof test.name !== 'string' || !statuses.has(test.status) ||
-        !rules.has(test.executionRule) || !['http-server', 'agent-to-server'].includes(test.type)) {
+        !rules.has(test.executionRule) || !['http-server', 'agent-to-server', 'page-load'].includes(test.type)) {
       throw new ActionError('The CLI JSON report contains an unsupported test outcome.');
     }
   }

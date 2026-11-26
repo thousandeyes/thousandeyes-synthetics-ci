@@ -129,9 +129,9 @@ func (c *apiClient) commandArgs(method, endpoint string) ([]string, error) {
 	parts := strings.Split(strings.TrimPrefix(u.Path, prefix), "/")
 	var args []string
 	switch {
-	case method == http.MethodPost && len(parts) == 3 && parts[0] == "tests" && parts[2] == "instant" && (parts[1] == "http-server" || parts[1] == "agent-to-server"):
+	case method == http.MethodPost && len(parts) == 3 && parts[0] == "tests" && parts[2] == "instant" && (parts[1] == "http-server" || parts[1] == "agent-to-server" || parts[1] == "page-load"):
 		args = []string{"tests", parts[1], "instant", "--body-file", "-", "--expand", "agent"}
-	case method == http.MethodGet && len(parts) == 3 && parts[0] == "test-results" && numericID.MatchString(parts[1]) && (parts[2] == "http-server" || parts[2] == "network"):
+	case method == http.MethodGet && len(parts) == 3 && parts[0] == "test-results" && numericID.MatchString(parts[1]) && (parts[2] == "http-server" || parts[2] == "network" || parts[2] == "page-load"):
 		args = []string{"test-results", parts[2], "get", "--test-id", parts[1]}
 	default:
 		return nil, fmt.Errorf("unsupported API endpoint")

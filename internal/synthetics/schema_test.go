@@ -140,8 +140,8 @@ func TestSyntheticSchemaExamples(t *testing.T) {
 		}
 	}
 	visit(document, "")
-	if examples == 0 || snippets != 2 || defaults == 0 {
-		t.Fatalf("expected schema examples, defaults, and both test-type snippets, got %d examples, %d defaults, and %d snippets", examples, defaults, snippets)
+	if examples == 0 || snippets != 3 || defaults == 0 {
+		t.Fatalf("expected schema examples, defaults, and a snippet per test type, got %d examples, %d defaults, and %d snippets", examples, defaults, snippets)
 	}
 }
 
@@ -184,9 +184,32 @@ func TestSyntheticSchemaConfigContract(t *testing.T) {
 		{name: "network null and zero criteria", kind: "agent-to-server", valid: true, edit: func(_, test, _ map[string]any) {
 			test["thresholds"] = map[string]any{"maxLoss": 0, "maxLatency": nil, "maxJitter": 0, "expectedResponseCodes": []any{}, "maxTotalTime": nil}
 		}},
+		{name: "Page Load null and zero criteria", kind: "page-load", valid: true, edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"maxPageLoadTime": 0, "maxDomLoadTime": nil, "maxErrors": 0, "maxLoss": nil, "expectedResponseCodes": []any{}}
+		}},
+		{name: "Page Load requires URL", kind: "page-load", edit: func(_, _, native map[string]any) { delete(native, "url") }},
+		{name: "Page Load requires HTTP URL", kind: "page-load", edit: func(_, _, native map[string]any) { native["url"] = "file:///etc/hosts" }},
+		{name: "Page Load cannot configure HTTP status assertion", kind: "page-load", edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"expectedResponseCodes": []any{200}}
+		}},
+		{name: "Page Load cannot configure loss limit", kind: "page-load", edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"maxLoss": 0}
+		}},
+		{name: "Page Load rejects negative timing limit", kind: "page-load", edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"maxPageLoadTime": -1}
+		}},
+		{name: "Page Load rejects fractional resource limit", kind: "page-load", edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"maxErrors": 0.5}
+		}},
 		{name: "HTTP foreign criterion", kind: "http-server", edit: func(_, test, _ map[string]any) { test["thresholds"] = map[string]any{"maxLoss": 0} }},
+		{name: "HTTP cannot configure Page Load limit", kind: "http-server", edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"maxPageLoadTime": 0}
+		}},
 		{name: "network foreign criterion", kind: "agent-to-server", edit: func(_, test, _ map[string]any) {
 			test["thresholds"] = map[string]any{"expectedResponseCodes": []any{200}}
+		}},
+		{name: "network cannot configure Page Load limit", kind: "agent-to-server", edit: func(_, test, _ map[string]any) {
+			test["thresholds"] = map[string]any{"maxErrors": 0}
 		}},
 		{name: "negative HTTP limit", kind: "http-server", edit: func(_, test, _ map[string]any) { test["thresholds"] = map[string]any{"maxResponseTime": -1} }},
 		{name: "loss exceeds percentage", kind: "agent-to-server", edit: func(_, test, _ map[string]any) { test["thresholds"] = map[string]any{"maxLoss": 101} }},
@@ -197,7 +220,7 @@ func TestSyntheticSchemaConfigContract(t *testing.T) {
 		{name: "null protocol is present", kind: "agent-to-server", edit: func(_, _, n map[string]any) { n["protocol"] = nil }},
 		{name: "empty protocol is present", kind: "agent-to-server", edit: func(_, _, n map[string]any) { n["protocol"] = "" }},
 	}
-	for _, kind := range []string{"http-server", "agent-to-server"} {
+	for _, kind := range []string{"http-server", "page-load", "agent-to-server"} {
 		for _, item := range cases {
 			if item.kind != "" && item.kind != kind {
 				continue
@@ -222,7 +245,7 @@ func TestSyntheticSchemaConfigContract(t *testing.T) {
 
 func schemaContractFixture(kind string) (suite, test, native map[string]any) {
 	native = map[string]any{"agents": []any{map[string]any{"agentId": "6"}}}
-	if kind == "http-server" {
+	if kind == "http-server" || kind == "page-load" {
 		native["url"] = "https://target.invalid/health"
 	} else {
 		native["server"], native["protocol"], native["port"] = "target.invalid", "tcp", 443

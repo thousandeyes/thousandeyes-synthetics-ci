@@ -35,7 +35,7 @@ func reportText(value, token string, limit int) string {
 
 func reportTarget(test TestConfig, token string) string {
 	var target string
-	if test.Type == "http-server" {
+	if test.Type == "http-server" || test.Type == "page-load" {
 		native, err := test.httpConfig()
 		if err != nil {
 			return ""

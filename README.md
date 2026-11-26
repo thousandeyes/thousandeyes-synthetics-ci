@@ -1,6 +1,6 @@
 # ThousandEyes Synthetics CI
 
-Validate application and network behavior after a change with ThousandEyes HTTP-server and agent-to-server instant tests. Run the same suite from GitHub Actions, Jenkins, GitLab CI, a developer terminal, Argo CD, or Argo Rollouts.
+Validate HTTP endpoints, browser page loads, and network connectivity after a change with ThousandEyes instant tests. Run the same suite from GitHub Actions, Jenkins, GitLab CI, a developer terminal, Argo CD, or Argo Rollouts.
 
 The Go runner uses the official [ThousandEyes CLI](https://github.com/thousandeyes/thousandeyes-cli) for API access, evaluates per-agent thresholds, and produces JSON/JUnit reports. The GitHub Action adds pipeline outputs and a job summary.
 
@@ -22,7 +22,7 @@ Each integration runs `te-synthetics run-tests` with the same version 1 suite.
 
 Copy the [example suite](examples/synthetics/thousandeyes-ci.json), then replace its account group, agents, targets, and thresholds. Supply `TE_TOKEN` through your secret store or shell environment. Private targets require Enterprise Agents that can reach them. Each run creates instant tests and consumes applicable ThousandEyes units.
 
-Use the [JSON Schema](schemas/thousandeyes-ci.schema.json) for editor completion. See [configuration and results](docs/configuration.md) for command options, thresholds, exit codes, and report semantics.
+Use the [JSON Schema](schemas/thousandeyes-ci.schema.json) for editor completion. See [configuration and results](docs/configuration.md) for command options, thresholds, exit codes, and report semantics. Start with the [Page Load example](docs/configuration.md#page-load-example) to measure browser performance.
 
 ## Development and releases
 
