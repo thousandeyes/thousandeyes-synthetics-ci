@@ -345,7 +345,7 @@ const path = __nccwpck_require__(6760);
 const { spawn } = __nccwpck_require__(1421);
 const { installRunner } = __nccwpck_require__(4515);
 const { XMLValidator, XMLParser } = __nccwpck_require__(591);
-const { writeSummary } = __nccwpck_require__(940);
+const { isSupportedTestType, writeSummary } = __nccwpck_require__(940);
 
 const DEFAULT_API = 'https://api.thousandeyes.com';
 
@@ -419,7 +419,7 @@ async function readReport(filename) {
   const rules = new Set(['blocking', 'non-blocking', 'skipped']);
   for (const test of report.tests) {
     if (!test || typeof test.name !== 'string' || !statuses.has(test.status) ||
-        !rules.has(test.executionRule) || !['http-server', 'agent-to-server', 'page-load'].includes(test.type)) {
+        !rules.has(test.executionRule) || !isSupportedTestType(test.type)) {
       throw new ActionError('The CLI JSON report contains an unsupported test outcome.');
     }
   }
@@ -697,6 +697,10 @@ const MEASUREMENT_FIELDS = {
 };
 const INTEGER_MEASUREMENTS = new Set(['numErrors', 'numObjects', 'totalSize']);
 
+function isSupportedTestType(type) {
+  return typeof type === 'string' && Object.hasOwn(MEASUREMENT_FIELDS, type);
+}
+
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -931,7 +935,7 @@ async function writeSummary(core, report, exitCode, counts, token = '') {
   await core.summary.addRaw(buildSummary(report, exitCode, counts, token)).write();
 }
 
-module.exports = { writeSummary };
+module.exports = { isSupportedTestType, writeSummary };
 
 
 /***/ }),

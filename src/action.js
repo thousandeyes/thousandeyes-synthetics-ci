@@ -19,7 +19,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { installRunner } = require('./install');
 const { XMLValidator, XMLParser } = require('fast-xml-parser');
-const { writeSummary } = require('./summary');
+const { isSupportedTestType, writeSummary } = require('./summary');
 
 const DEFAULT_API = 'https://api.thousandeyes.com';
 
@@ -93,7 +93,7 @@ async function readReport(filename) {
   const rules = new Set(['blocking', 'non-blocking', 'skipped']);
   for (const test of report.tests) {
     if (!test || typeof test.name !== 'string' || !statuses.has(test.status) ||
-        !rules.has(test.executionRule) || !['http-server', 'agent-to-server', 'page-load'].includes(test.type)) {
+        !rules.has(test.executionRule) || !isSupportedTestType(test.type)) {
       throw new ActionError('The CLI JSON report contains an unsupported test outcome.');
     }
   }

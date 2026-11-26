@@ -247,6 +247,7 @@ if (process.env.FIXTURE_CASE === 'malformed-details') {
 }
 if (process.env.FIXTURE_BAD_REPORT === 'version') report.version = 2;
 if (process.env.FIXTURE_BAD_REPORT === 'status') report.tests[0].status = 'unknown';
+if (process.env.FIXTURE_TEST_TYPE !== undefined) report.tests[0].type = JSON.parse(process.env.FIXTURE_TEST_TYPE);
 const jsonPath = value('--json-report');
 const junitPath = value('--junit-report');
 if (!process.env.FIXTURE_NO_REPORT) {

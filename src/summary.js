@@ -33,6 +33,10 @@ const MEASUREMENT_FIELDS = {
 };
 const INTEGER_MEASUREMENTS = new Set(['numErrors', 'numObjects', 'totalSize']);
 
+function isSupportedTestType(type) {
+  return typeof type === 'string' && Object.hasOwn(MEASUREMENT_FIELDS, type);
+}
+
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -267,4 +271,4 @@ async function writeSummary(core, report, exitCode, counts, token = '') {
   await core.summary.addRaw(buildSummary(report, exitCode, counts, token)).write();
 }
 
-module.exports = { writeSummary };
+module.exports = { isSupportedTestType, writeSummary };

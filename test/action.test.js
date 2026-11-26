@@ -618,6 +618,18 @@ test('an explicit API backend reaches the portable runner without shell expansio
   assertNoRawChildLogs(result);
 });
 
+test('unsupported report types are rejected before writing a summary', async (t) => {
+  const f = await fixture(t);
+  for (const type of ['toString', ['page-load']]) {
+    const result = await f.run({ FIXTURE_TEST_TYPE: JSON.stringify(type) });
+    assert.equal(result.outputs['exit-code'], '0');
+    assert.notEqual(result.status, 0, result.visibleLog);
+    assert.match(result.visibleLog, /The CLI JSON report contains an unsupported test outcome\./);
+    assert.equal(result.summary, '');
+    assertNoRawChildLogs(result);
+  }
+});
+
 for (const [name, override] of [
   ['missing JSON report', { FIXTURE_NO_REPORT: '1' }],
   ['malformed JSON report', { FIXTURE_MALFORMED_REPORT: '1' }],
