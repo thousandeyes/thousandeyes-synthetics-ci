@@ -137,8 +137,10 @@ func TestBackendUsesOnlySupportedCommandsAndProtectedTransportFlags(t *testing.T
 	}
 	for _, item := range []struct{ method, endpoint, expected string }{
 		{http.MethodPost, "/tests/http-server/instant", "tests http-server instant --body-file - --expand agent"},
+		{http.MethodPost, "/tests/page-load/instant", "tests page-load instant --body-file - --expand agent"},
 		{http.MethodPost, "/tests/agent-to-server/instant", "tests agent-to-server instant --body-file - --expand agent"},
 		{http.MethodGet, "/test-results/101/http-server?cursor=opaque%2B%2F%3Dnext", "test-results http-server get --test-id 101"},
+		{http.MethodGet, "/test-results/101/page-load", "test-results page-load get --test-id 101"},
 		{http.MethodGet, "/test-results/102/network", "test-results network get --test-id 102"},
 	} {
 		args, err := client.commandArgs(item.method, client.endpoint(item.endpoint))

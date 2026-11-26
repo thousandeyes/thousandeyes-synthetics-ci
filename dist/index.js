@@ -345,7 +345,7 @@ const path = __nccwpck_require__(6760);
 const { spawn } = __nccwpck_require__(1421);
 const { installRunner } = __nccwpck_require__(4515);
 const { XMLValidator, XMLParser } = __nccwpck_require__(591);
-const { writeSummary } = __nccwpck_require__(940);
+const { isSupportedTestType, writeSummary } = __nccwpck_require__(940);
 
 const DEFAULT_API = 'https://api.thousandeyes.com';
 
@@ -419,7 +419,7 @@ async function readReport(filename) {
   const rules = new Set(['blocking', 'non-blocking', 'skipped']);
   for (const test of report.tests) {
     if (!test || typeof test.name !== 'string' || !statuses.has(test.status) ||
-        !rules.has(test.executionRule) || !['http-server', 'agent-to-server'].includes(test.type)) {
+        !rules.has(test.executionRule) || !isSupportedTestType(test.type)) {
       throw new ActionError('The CLI JSON report contains an unsupported test outcome.');
     }
   }
@@ -686,6 +686,20 @@ const PROBLEM_STATUSES = new Set(['failed', 'timed-out', 'error']);
 const AGENT_STATUSES = new Set(['passed', 'failed', 'skipped', 'timed-out', 'error', 'pending']);
 const STATUS_SYMBOLS = { passed: '🟢', failed: '🔴', skipped: '⚪', 'timed-out': '🟠', error: '🔴', pending: '🟡' };
 const AGENT_HEADERS = ['Test ID', 'Test', 'Target', 'Agent', 'Round', 'Status', 'Measurements', 'Details', 'Results'];
+const MEASUREMENT_FIELDS = {
+  'http-server': [['responseCode', 'HTTP status', ''], ['responseTime', 'Response time', ' ms'], ['totalTime', 'Total time', ' ms']],
+  'agent-to-server': [['loss', 'Packet loss', '%'], ['avgLatency', 'Average RTT', ' ms'], ['jitter', 'Jitter', ' ms']],
+  'page-load': [
+    ['responseTime', 'Time to first byte', ' ms'], ['domLoadTime', 'DOM load time', ' ms'],
+    ['pageLoadTime', 'Page load time', ' ms'], ['numErrors', 'Resource errors', ''],
+    ['numObjects', 'Resources', ''], ['totalSize', 'Total size', ' bytes']
+  ]
+};
+const INTEGER_MEASUREMENTS = new Set(['numErrors', 'numObjects', 'totalSize']);
+
+function isSupportedTestType(type) {
+  return typeof type === 'string' && Object.hasOwn(MEASUREMENT_FIELDS, type);
+}
 
 function record(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -812,15 +826,13 @@ function agentDetails(tests) {
 
 function measurements(type, agent, format) {
   const metrics = record(agent.metrics) ? agent.metrics : {};
-  const fields = type === 'http-server'
-    ? [['responseCode', 'HTTP status', ''], ['responseTime', 'Response time', ' ms'], ['totalTime', 'Total time', ' ms']]
-    : [['loss', 'Packet loss', '%'], ['avgLatency', 'Average RTT', ' ms'], ['jitter', 'Jitter', ' ms']];
   const lines = [];
-  for (const [key, label, unit] of fields) {
+  for (const [key, label, unit] of MEASUREMENT_FIELDS[type]) {
     const value = metrics[key];
     const valid = typeof value === 'number' && Number.isFinite(value) && value >= 0 &&
       (key !== 'responseCode' || (Number.isInteger(value) && value >= 100 && value <= 599)) &&
-      (key !== 'loss' || value <= 100);
+      (key !== 'loss' || value <= 100) &&
+      (!INTEGER_MEASUREMENTS.has(key) || Number.isInteger(value));
     lines.push(`${label}: ${valid ? `${format(number(value), 40)}${unit}` : 'Not reported'}`);
   }
   return lines.join('<br>');
@@ -923,7 +935,7 @@ async function writeSummary(core, report, exitCode, counts, token = '') {
   await core.summary.addRaw(buildSummary(report, exitCode, counts, token)).write();
 }
 
-module.exports = { writeSummary };
+module.exports = { isSupportedTestType, writeSummary };
 
 
 /***/ }),

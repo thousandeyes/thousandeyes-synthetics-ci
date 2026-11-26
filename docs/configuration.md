@@ -4,7 +4,7 @@ Use `te-synthetics run-tests --config thousandeyes-ci.json` with `TE_TOKEN` in t
 
 ## Configuration and evaluation
 
-Use the [JSON Schema](../schemas/thousandeyes-ci.schema.json) for completion, field descriptions, examples, and validation in compatible editors and schema-based generators. The [example suite](../examples/synthetics/thousandeyes-ci.json) already references it through `$schema`. In VS Code, completion inside `tests` offers HTTP and network test snippets. Replace their sample account group, agents, and targets before running a suite.
+Use the [JSON Schema](../schemas/thousandeyes-ci.schema.json) for completion, field descriptions, examples, and validation in compatible editors and schema-based generators. The [example suite](../examples/synthetics/thousandeyes-ci.json) already references it through `$schema`. In VS Code, completion inside `tests` offers HTTP server, Page Load, and network test snippets. Replace their sample account group, agents, and targets before running a suite.
 
 For another repository, copy the schema alongside your suite and set `"$schema": "./thousandeyes-ci.schema.json"`. Adjust this relative path if you store the schema elsewhere. The runner accepts `$schema` as editor metadata and never fetches it. Schema defaults are authoring hints; the runner applies execution defaults.
 
@@ -15,7 +15,7 @@ The version 1 JSON format contains `accountGroupId`, an optional suite `timeout`
 | Field | Meaning |
 | --- | --- |
 | `name` | Unique, single-line name without control characters. |
-| `type` | `http-server` or `agent-to-server`. |
+| `type` | `http-server`, `page-load`, or `agent-to-server`. |
 | `config` | Native instant-test request payload, including its target and `agents`. Do not include read-only fields such as `type` or `testId`. |
 | `executionRule` | `blocking` (default), `non-blocking`, or `skipped`. |
 | `thresholds` | Optional criteria shown below. |
@@ -23,15 +23,44 @@ The version 1 JSON format contains `accountGroupId`, an optional suite `timeout`
 | Type | Default gate | Optional thresholds |
 | --- | --- | --- |
 | HTTP server | A response code from 200 through 399, with no reported test error. | `expectedResponseCodes` replaces the CI's accepted codes; `maxResponseTime` limits time to first byte in milliseconds; `maxTotalTime` limits total time in milliseconds. |
+| Page Load | A measured full page load time and zero resource download errors, with no reported test error. | `maxPageLoadTime` limits full page load time and `maxDomLoadTime` limits time to interaction, both in milliseconds. `maxErrors` limits the number of resources with download errors. |
 | Agent to server | Measured end-to-end packet loss is zero. | `maxLoss` is a percentage; `maxLatency` limits average RTT in milliseconds; `maxJitter` limits jitter in milliseconds. |
 
-Each test uses `config` and one flat `thresholds` object. Optional HTTP timing and network latency/jitter limits are unset when omitted or `null`; `0` is an active maximum. Packet loss still defaults to zero. Additional native configuration and agent fields are preserved in the creation request.
+Each test uses `config` and one flat `thresholds` object. Timing and jitter limits are unset when omitted or `null`. A value of `0` is an active maximum. The packet loss and Page Load error limits default to zero. Additional native configuration and agent fields are preserved in the creation request.
 
 Every configured agent must return applicable results from one coherent round. Missing values remain pending until the suite deadline; they never become zero or success. A known primary measurement failure can fail immediately without waiting for timing values that may never arrive. Network diagnostics attached to HTTP tests do not automatically become additional gates. When testing an expected non-2xx/3xx response, also align the native payload's `desiredStatusCode` setting; a native test error remains a failed check even if its response code appears in `expectedResponseCodes`.
 
 For agent-to-server creation, set `server` to the hostname or IP address and supply a separate integer `port` for TCP or UDP targets, as shown in the example suite. The API response may combine them as `hostname:port`.
 
 The runner supports individual Cloud and Enterprise Agents. Cluster-agent completeness and network directions other than `to-target` are not supported. Suite definitions are validated before submitting tests. Unsupported test types, duplicate agents, incompatible thresholds, and invalid durations are rejected; the API validates the native test payload.
+
+### Page Load example
+
+Use a Page Load test to open a web page in a browser and measure how long it takes to load. Set `url` to an absolute HTTP or HTTPS URL reachable by your selected agents. Replace the account group and agent ID in this example with values from your account.
+
+```json
+{
+  "version": 1,
+  "accountGroupId": "123456",
+  "tests": [
+    {
+      "name": "homepage",
+      "type": "page-load",
+      "config": {
+        "url": "https://example.com/",
+        "agents": [{"agentId": "6"}]
+      },
+      "thresholds": {
+        "maxPageLoadTime": 3000,
+        "maxDomLoadTime": 1500,
+        "maxErrors": 0
+      }
+    }
+  ]
+}
+```
+
+Page Load reports can include time to first byte (`responseTime`), time to interaction (`domLoadTime`), full page load time (`pageLoadTime`), resource download errors (`numErrors`), objects found on the page (`numObjects`), and total transfer size in bytes (`totalSize`). Reported timings and CI thresholds use milliseconds. The native browser timeout, `config.pageLoadTimeLimit`, uses seconds. Use an HTTP server test to check an expected status code. [ThousandEyes Page Load API results](https://developer.cisco.com/docs/thousandeyes/v7/get-page-load-server-test-results/)
 
 ## Results and exit status
 
@@ -41,7 +70,7 @@ The runner supports individual Cloud and Enterprise Agents. Cluster-agent comple
 - Configuration and report paths must identify different files. Within the same directory, filenames that differ only by letter case or Unicode normalization are treated as collisions for portability.
 - JUnit contains a case per agent, or a case for a test with no agent outcomes. An additional execution-error case preserves any test-level failure not represented by agent outcomes. Non-blocking assertion failures are represented as JUnit failures and have an `executionRule` property, while the runner exit status follows the configured rule. Consumers that independently gate on JUnit must account for that distinction.
 
-Reports contain run/test/agent identities, status, selected numeric measurements, and permitted platform links. Version 1 also includes optional `tests[].target` and `tests[].agents[].agentName` fields. Targets show the configured HTTP URL with user information, query strings, and fragments removed, or the network host and configured port. Names come from result metadata, falling back to the expanded creation response, without an extra agent lookup. Terminal output includes both fields; JUnit includes them as case properties.
+Reports contain run/test/agent identities, status, selected numeric measurements, and permitted platform links. Version 1 also includes optional `tests[].target` and `tests[].agents[].agentName` fields. HTTP server and Page Load targets show the configured URL with user information, query strings, and fragments removed. Network targets show the host and configured port. Names come from result metadata, falling back to the expanded creation response, without an extra agent lookup. Terminal output includes both fields. JUnit includes them as case properties.
 
 Failed checks include the measured value and configured expectation, such as `HTTP response code 503 did not match expected [200]` or `responseTime 125.5 ms exceeded maximum 100 ms`. Native error details remain excluded; native HTTP errors can include the same safe response-code context.
 

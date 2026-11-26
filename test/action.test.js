@@ -206,6 +206,20 @@ test('report text cannot insert active HTML into the job summary', async (t) => 
   assertNoRawChildLogs(result);
 });
 
+test('a blocking Page Load failure retains per-agent browser measurements in the summary', async (t) => {
+  const f = await fixture(t);
+  const result = await f.run({ FIXTURE_CASE: 'page-load', FIXTURE_EXIT_CODE: '1' });
+  assert.equal(result.status, 1, result.visibleLog);
+  assert.equal(result.outputs.failed, '1');
+  const [overview, agents] = summaryTables(result);
+  assert.deepEqual(overview.rows[0], ['1003', 'load-homepage', 'page-load', 'blocking', '🔴 failed']);
+  const measurements = agents.headers.indexOf('Measurements');
+  const [failed, passed] = agents.rows;
+  assert.match(failed[measurements], /Page load time: 620 ms/);
+  assert.match(failed[agents.headers.indexOf('Details')], /pageLoadTime 620 ms exceeded maximum 500 ms/);
+  assert.equal(passed[measurements], 'Time to first byte: 25.5 ms DOM load time: 340 ms Page load time: 450 ms Resource errors: 0 Resources: 12 Total size: 45678 bytes');
+});
+
 test('summary includes run timing, test identities, agent measurements, and approved result links', async (t) => {
   const f = await fixture(t);
   const result = await f.run({ FIXTURE_CASE: 'details' });
@@ -602,6 +616,18 @@ test('an explicit API backend reaches the portable runner without shell expansio
   const index = result.capture.args.indexOf('--api-cli-path');
   assert.equal(result.capture.args[index + 1], process.execPath);
   assertNoRawChildLogs(result);
+});
+
+test('unsupported report types are rejected before writing a summary', async (t) => {
+  const f = await fixture(t);
+  for (const type of ['toString', ['page-load']]) {
+    const result = await f.run({ FIXTURE_TEST_TYPE: JSON.stringify(type) });
+    assert.equal(result.outputs['exit-code'], '0');
+    assert.notEqual(result.status, 0, result.visibleLog);
+    assert.match(result.visibleLog, /The CLI JSON report contains an unsupported test outcome\./);
+    assert.equal(result.summary, '');
+    assertNoRawChildLogs(result);
+  }
 });
 
 for (const [name, override] of [

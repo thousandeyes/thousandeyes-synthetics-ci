@@ -201,8 +201,8 @@ func (t TestConfig) validate() error {
 	}) {
 		return fmt.Errorf("name must not contain control characters or line separators")
 	}
-	if t.Type != "http-server" && t.Type != "agent-to-server" {
-		return fmt.Errorf("unsupported synthetic test type; supported types are http-server and agent-to-server")
+	if t.Type != "http-server" && t.Type != "agent-to-server" && t.Type != "page-load" {
+		return fmt.Errorf("unsupported synthetic test type; supported types are http-server, agent-to-server, and page-load")
 	}
 	if t.ExecutionRule != "" && t.ExecutionRule != "blocking" && t.ExecutionRule != "non-blocking" && t.ExecutionRule != "skipped" {
 		return fmt.Errorf("executionRule must be blocking, non-blocking, or skipped")
@@ -223,7 +223,7 @@ func (t TestConfig) validate() error {
 	if direction, ok := t.Config["direction"]; ok && !bytes.Equal(direction, []byte(`"to-target"`)) {
 		return fmt.Errorf("only to-target network direction is supported")
 	}
-	if t.Type == "http-server" {
+	if t.Type == "http-server" || t.Type == "page-load" {
 		native, err := t.httpConfig()
 		if err != nil {
 			return err

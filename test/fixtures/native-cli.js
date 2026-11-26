@@ -81,6 +81,18 @@ if (process.env.FIXTURE_CASE === 'multi-agent') {
     ...test, agents: ['6', '7', '8'].map((agentId) => ({ agentId, status: test.status }))
   }));
 }
+if (process.env.FIXTURE_CASE === 'page-load') {
+  tests = [{
+    ...check('load-homepage', 'failed'), type: 'page-load', testId: '1003', target: 'https://example.com/',
+    agents: [{
+      agentId: '6', status: 'passed',
+      metrics: { responseTime: 25.5, domLoadTime: 340, pageLoadTime: 450, numErrors: 0, numObjects: 12, totalSize: 45678 }
+    }, {
+      agentId: '7', status: 'failed', message: 'pageLoadTime 620 ms exceeded maximum 500 ms',
+      metrics: { pageLoadTime: 620, numErrors: 0 }
+    }]
+  }];
+}
 if (process.env.FIXTURE_CASE === 'multi-agent-non-blocking') {
   tests = [check('healthy-agents', 'passed'), check('optional-agents', 'failed', 'non-blocking')].map((test) => ({
     ...test, agents: ['6', '7', '8'].map((agentId) => ({ agentId, status: test.status }))
@@ -235,6 +247,7 @@ if (process.env.FIXTURE_CASE === 'malformed-details') {
 }
 if (process.env.FIXTURE_BAD_REPORT === 'version') report.version = 2;
 if (process.env.FIXTURE_BAD_REPORT === 'status') report.tests[0].status = 'unknown';
+if (process.env.FIXTURE_TEST_TYPE !== undefined) report.tests[0].type = JSON.parse(process.env.FIXTURE_TEST_TYPE);
 const jsonPath = value('--json-report');
 const junitPath = value('--junit-report');
 if (!process.env.FIXTURE_NO_REPORT) {

@@ -13,6 +13,7 @@ import (
 type Thresholds struct {
 	HTTPThresholds
 	NetworkThresholds
+	PageLoadThresholds
 }
 
 type HTTPThresholds struct {
@@ -27,18 +28,29 @@ type NetworkThresholds struct {
 	MaxJitter  *float64 `json:"maxJitter,omitempty"`
 }
 
+type PageLoadThresholds struct {
+	MaxDomLoadTime  *float64 `json:"maxDomLoadTime,omitempty"`
+	MaxPageLoadTime *float64 `json:"maxPageLoadTime,omitempty"`
+	MaxErrors       *float64 `json:"maxErrors,omitempty"`
+}
+
 func (t Thresholds) validate(kind string) error {
+	if kind != "page-load" && (t.MaxDomLoadTime != nil || t.MaxPageLoadTime != nil || t.MaxErrors != nil) {
+		return fmt.Errorf("Page Load thresholds require a page-load test")
+	}
+	if kind != "http-server" && (t.MaxResponseTime != nil || t.MaxTotalTime != nil || len(t.ExpectedResponseCodes) > 0) {
+		return fmt.Errorf("HTTP thresholds require an http-server test")
+	}
+	if kind != "agent-to-server" && (t.MaxLoss != nil || t.MaxLatency != nil || t.MaxJitter != nil) {
+		return fmt.Errorf("network thresholds require an agent-to-server test")
+	}
 	switch kind {
 	case "http-server":
-		if t.MaxLoss != nil || t.MaxLatency != nil || t.MaxJitter != nil {
-			return fmt.Errorf("network thresholds require an agent-to-server test")
-		}
 		return t.HTTPThresholds.validate()
 	case "agent-to-server":
-		if t.MaxResponseTime != nil || t.MaxTotalTime != nil || len(t.ExpectedResponseCodes) > 0 {
-			return fmt.Errorf("HTTP thresholds require an http-server test")
-		}
 		return t.NetworkThresholds.validate()
+	case "page-load":
+		return t.PageLoadThresholds.validate()
 	default:
 		return fmt.Errorf("unsupported synthetic test type")
 	}
@@ -64,6 +76,18 @@ func (t NetworkThresholds) validate() error {
 	}
 	if t.MaxLoss != nil && *t.MaxLoss > 100 {
 		return fmt.Errorf("maxLoss must not exceed 100 percent")
+	}
+	return nil
+}
+
+func (t PageLoadThresholds) validate() error {
+	if err := validateMaxima(map[string]*float64{
+		"maxDomLoadTime": t.MaxDomLoadTime, "maxPageLoadTime": t.MaxPageLoadTime, "maxErrors": t.MaxErrors,
+	}); err != nil {
+		return err
+	}
+	if t.MaxErrors != nil && math.Trunc(*t.MaxErrors) != *t.MaxErrors {
+		return fmt.Errorf("maxErrors must be a whole number")
 	}
 	return nil
 }

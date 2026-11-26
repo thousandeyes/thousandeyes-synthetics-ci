@@ -28,6 +28,11 @@ type resultRow struct {
 	ResponseCode *float64    `json:"responseCode"`
 	ResponseTime *float64    `json:"responseTime"`
 	TotalTime    *float64    `json:"totalTime"`
+	DomLoadTime  *float64    `json:"domLoadTime"`
+	PageLoadTime *float64    `json:"pageLoadTime"`
+	NumErrors    *float64    `json:"numErrors"`
+	NumObjects   *float64    `json:"numObjects"`
+	TotalSize    *float64    `json:"totalSize"`
 	Loss         *float64    `json:"loss"`
 	AvgLatency   *float64    `json:"avgLatency"`
 	Jitter       *float64    `json:"jitter"`
@@ -171,14 +176,27 @@ func evaluateRows(test TestConfig, ids []string, rows []resultRow) ([]AgentResul
 
 func evaluateRow(test TestConfig, row resultRow) (AgentResult, bool, error) {
 	outcome := AgentResult{AgentID: row.Agent.AgentID, AgentName: row.Agent.AgentName, RoundID: row.RoundID.String(), Status: "pending", Metrics: make(map[string]float64), URL: sanitizeAppLink(row.Links.AppLink.Href)}
-	metrics := map[string]*float64{"responseCode": row.ResponseCode, "responseTime": row.ResponseTime, "totalTime": row.TotalTime}
-	if test.Type == "agent-to-server" {
+	var metrics map[string]*float64
+	switch test.Type {
+	case "http-server":
+		metrics = map[string]*float64{"responseCode": row.ResponseCode, "responseTime": row.ResponseTime, "totalTime": row.TotalTime}
+	case "agent-to-server":
 		metrics = map[string]*float64{"loss": row.Loss, "avgLatency": row.AvgLatency, "jitter": row.Jitter}
+	case "page-load":
+		metrics = map[string]*float64{
+			"responseTime": row.ResponseTime, "domLoadTime": row.DomLoadTime, "pageLoadTime": row.PageLoadTime,
+			"numErrors": row.NumErrors, "numObjects": row.NumObjects, "totalSize": row.TotalSize,
+		}
+	default:
+		return outcome, false, fmt.Errorf("unsupported synthetic test type")
 	}
 	for key, value := range metrics {
 		if value != nil {
 			if math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 || (key == "loss" && *value > 100) {
 				return outcome, false, fmt.Errorf("result response contains an invalid numeric measurement")
+			}
+			if (key == "numErrors" || key == "numObjects" || key == "totalSize") && math.Trunc(*value) != *value {
+				return outcome, false, fmt.Errorf("result response contains an invalid count or size measurement")
 			}
 			outcome.Metrics[key] = *value
 		}
@@ -197,6 +215,8 @@ func evaluateRow(test TestConfig, row resultRow) (AgentResult, bool, error) {
 		return evaluateHTTPRow(outcome, row, test.Thresholds.HTTPThresholds)
 	case "agent-to-server":
 		return evaluateNetworkRow(outcome, row, test.Thresholds.NetworkThresholds)
+	case "page-load":
+		return evaluatePageLoadRow(outcome, row, test.Thresholds.PageLoadThresholds)
 	default:
 		return outcome, false, fmt.Errorf("unsupported synthetic test type")
 	}
@@ -266,6 +286,27 @@ func evaluateNetworkRow(outcome AgentResult, row resultRow, thresholds NetworkTh
 		return outcome, true, nil
 	}
 	return evaluateLimits(outcome, []metricLimit{{"avgLatency", row.AvgLatency, thresholds.MaxLatency}, {"jitter", row.Jitter, thresholds.MaxJitter}})
+}
+
+func evaluatePageLoadRow(outcome AgentResult, row resultRow, thresholds PageLoadThresholds) (AgentResult, bool, error) {
+	maxErrors := 0.0
+	if thresholds.MaxErrors != nil {
+		maxErrors = *thresholds.MaxErrors
+	}
+	if row.NumErrors != nil && *row.NumErrors > maxErrors {
+		outcome.Status = "failed"
+		outcome.Message = fmt.Sprintf("numErrors %g exceeded maximum %g", *row.NumErrors, maxErrors)
+		return outcome, true, nil
+	}
+	outcome, ready, err := evaluateLimits(outcome, []metricLimit{
+		{"pageLoadTime", row.PageLoadTime, thresholds.MaxPageLoadTime},
+		{"domLoadTime", row.DomLoadTime, thresholds.MaxDomLoadTime},
+	})
+	if outcome.Status == "passed" && (row.PageLoadTime == nil || row.NumErrors == nil) {
+		outcome.Status = "pending"
+		return outcome, false, nil
+	}
+	return outcome, ready, err
 }
 
 type metricLimit struct {

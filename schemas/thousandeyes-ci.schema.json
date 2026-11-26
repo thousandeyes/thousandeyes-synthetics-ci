@@ -3,7 +3,7 @@
   "$id": "https://raw.githubusercontent.com/thousandeyes/thousandeyes-synthetics-ci/main/schemas/thousandeyes-ci.schema.json",
   "$comment": "Copyright 2026 Cisco Systems, Inc. and its affiliates. SPDX-License-Identifier: Apache-2.0",
   "title": "ThousandEyes synthetic CI suite",
-  "description": "Configure HTTP and network instant tests for te-synthetics run-tests. The CLI performs final validation, including unique test names and agent IDs, UTF-8 name lengths, and positive Go durations. The ThousandEyes API validates additional native payload options.",
+  "description": "Configure HTTP server, Page Load, and network instant tests for te-synthetics run-tests. The CLI performs final validation, including unique test names and agent IDs, UTF-8 name lengths, and positive Go durations. The ThousandEyes API validates additional native payload options.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "tests"],
@@ -50,6 +50,7 @@
       "items": {
         "oneOf": [
           {"$ref": "#/definitions/httpTest"},
+          {"$ref": "#/definitions/pageLoadTest"},
           {"$ref": "#/definitions/networkTest"}
         ],
         "defaultSnippets": [
@@ -68,6 +69,23 @@
                 "expectedResponseCodes": [200],
                 "maxResponseTime": 2000,
                 "maxTotalTime": 3000
+              }
+            }
+          },
+          {
+            "label": "Page Load check",
+            "description": "Check browser page load timing and resource download errors.",
+            "body": {
+              "name": "homepage",
+              "type": "page-load",
+              "config": {
+                "url": "https://example.com/",
+                "agents": [{"agentId": "6"}]
+              },
+              "thresholds": {
+                "maxPageLoadTime": 3000,
+                "maxDomLoadTime": 1500,
+                "maxErrors": 0
               }
             }
           },
@@ -181,7 +199,7 @@
     },
     "httpConfig": {
       "type": "object",
-      "description": "Native HTTP instant-test creation payload. Additional options pass through unchanged and are validated by the ThousandEyes API. The CLI generates a unique testName for this run.",
+      "description": "Native HTTP server or Page Load instant-test creation payload. Additional options pass through unchanged and are validated by the ThousandEyes API. The CLI generates a unique testName for this run.",
       "additionalProperties": true,
       "required": ["url", "agents"],
       "properties": {
@@ -272,6 +290,46 @@
         "^(maxLoss|maxLatency|maxJitter)$": {
           "type": "null",
           "description": "A null network criterion is accepted as unset for compatibility. Non-null network criteria require an agent-to-server test."
+        },
+        "^(maxPageLoadTime|maxDomLoadTime|maxErrors)$": {
+          "type": "null",
+          "description": "A null Page Load criterion is accepted as unset. Non-null Page Load criteria require a page-load test."
+        }
+      }
+    },
+    "pageLoadThresholds": {
+      "type": ["object", "null"],
+      "description": "Page Load pass criteria. Every selected agent must return a full page load time and a resource download error count. The resource download error limit defaults to zero. Timing limits are optional.",
+      "additionalProperties": false,
+      "propertyNames": {"not": {"pattern": "[\\r\\n\u2028\u2029]"}},
+      "properties": {
+        "maxPageLoadTime": {
+          "allOf": [{"$ref": "#/definitions/nonnegativeLimit"}],
+          "description": "Maximum full page load time in milliseconds.",
+          "examples": [3000]
+        },
+        "maxDomLoadTime": {
+          "allOf": [{"$ref": "#/definitions/nonnegativeLimit"}],
+          "description": "Maximum time to interaction in milliseconds.",
+          "examples": [1500]
+        },
+        "maxErrors": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Maximum number of resources with download errors. Omitted or null uses zero.",
+          "default": 0,
+          "examples": [0, 1]
+        }
+      },
+      "patternProperties": {
+        "^(maxResponseTime|maxTotalTime|maxLoss|maxLatency|maxJitter)$": {
+          "type": "null",
+          "description": "Null HTTP server and network limits are accepted as unset. Non-null limits require their matching test type."
+        },
+        "^expectedResponseCodes$": {
+          "type": ["array", "null"],
+          "maxItems": 0,
+          "description": "A null or empty HTTP response-code criterion is accepted as unset. Nonempty criteria require an http-server test."
         }
       }
     },
@@ -309,6 +367,10 @@
           "type": ["array", "null"],
           "maxItems": 0,
           "description": "A null or empty HTTP response-code criterion is accepted as unset for compatibility. Nonempty response-code criteria require an http-server test."
+        },
+        "^(maxPageLoadTime|maxDomLoadTime|maxErrors)$": {
+          "type": "null",
+          "description": "A null Page Load criterion is accepted as unset. Non-null Page Load criteria require a page-load test."
         }
       }
     },
@@ -324,6 +386,20 @@
         "executionRule": {"$ref": "#/definitions/executionRule"},
         "config": {"$ref": "#/definitions/httpConfig"},
         "thresholds": {"$ref": "#/definitions/httpThresholds"}
+      }
+    },
+    "pageLoadTest": {
+      "type": "object",
+      "title": "Page Load test",
+      "description": "Create a browser Page Load instant test and evaluate its results for every configured agent.",
+      "additionalProperties": false,
+      "required": ["name", "type", "config"],
+      "properties": {
+        "name": {"$ref": "#/definitions/testName"},
+        "type": {"const": "page-load"},
+        "executionRule": {"$ref": "#/definitions/executionRule"},
+        "config": {"$ref": "#/definitions/httpConfig"},
+        "thresholds": {"$ref": "#/definitions/pageLoadThresholds"}
       }
     },
     "networkTest": {
