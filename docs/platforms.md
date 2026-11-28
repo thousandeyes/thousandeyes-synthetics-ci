@@ -49,7 +49,7 @@ The workflow builds the runner and loads the local Action from one pinned checko
 
 To check out this private source from another repository, add `TE_SYNTHETICS_READ_TOKEN` with **Contents: read** access and any required organization authorization. The application's `GITHUB_TOKEN` cannot read another private repository. Public or same-repository checkouts use the default token. Checkout disables persisted credentials; the ThousandEyes token is supplied only to the test step.
 
-The example uses `runner-path` and needs no published release. For `runner-version` requirements and private-download limits, see [release guidance](../RELEASING.md#consumer-version-pins).
+The source-build example uses `runner-path`. When you use a published Action release that pins its runner, the Action downloads the matching bundle automatically. Action version `1.0.0` requires an explicit `runner-version` or `runner-path`. See [release guidance](../RELEASING.md#consumer-version-pins) for version overrides and private-download limits.
 
 ### Inputs
 
@@ -58,7 +58,7 @@ The example uses `runner-path` and needs no published release. For `runner-versi
 | `api-token` | Required | ThousandEyes API bearer token from a secret. |
 | `config-path` | `thousandeyes-ci.json` | Suite file relative to the workspace, or absolute. |
 | `runner-path` | Empty | Absolute path to a managed `te-synthetics` executable. |
-| `runner-version` | Empty | Exact published release from this repository; required if no runner path is supplied. |
+| `runner-version` | Version pinned by the Action | Override the runner download with an exact published release. |
 | `api-cli-path` | Bundled backend | Absolute path to a compatible official API CLI override. |
 | `account-group-id` | Suite value | Override the account group. |
 | `timeout`, `poll-interval` | Suite values | Positive duration overrides such as `5m` and `5s`. |

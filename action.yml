@@ -12,7 +12,7 @@ inputs:
     description: Repository suite JSON file, relative to the workspace or absolute.
     default: thousandeyes-ci.json
   runner-version:
-    description: Exact published synthetic CI release version. This preview has no default release. Floating latest is not supported.
+    description: Optional override for the exact published runner version pinned by this Action.
   runner-path:
     description: Absolute path to a preinstalled te-synthetics runner instead of downloading it.
   cli-version:

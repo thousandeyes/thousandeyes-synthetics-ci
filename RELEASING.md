@@ -5,11 +5,11 @@
 | Component | Use |
 | --- | --- |
 | GitHub Action | A reviewed full commit SHA. |
-| Runner | A reviewed source commit or exact published `runner-version`, without a `v` prefix. |
+| Runner | The version pinned by the Action, a reviewed source build, or an exact published `runner-version` override without a `v` prefix. |
 | Official CLI backend | The source commit in [backend.json](backend.json). |
 | Container | An image digest. |
 
-The [GitHub Actions example](examples/github-actions/ci.yml) builds the runner and loads the Action from the same pinned checkout. Otherwise, select the Action and runner versions separately.
+The [GitHub Actions example](examples/github-actions/ci.yml) builds the runner and loads the Action from the same pinned checkout. Published Action releases with a runner pin download the matching executable. Action version `1.0.0` requires an explicit version or executable path.
 
 While the repository is private, use a source build with `runner-path`; release downloads do not support GitHub authentication. Archive SHA-256 checksums detect mismatches with the release manifest, but do not establish publisher identity.
 
@@ -19,8 +19,8 @@ Review changes to `backend.json`, `package-lock.json`, `go.mod`, `go.sum`, and t
 
 ## Publish a release
 
-1. Select a reviewed `main` commit with passing CI and complete the required publishing approvals. Pushing a version tag starts publication immediately.
-2. Choose an unused `X.Y.Z` version, or a prerelease version when using a preview backend. Set `VERSION` and `REVIEWED_SHA`, then run:
+1. Choose an unused `X.Y.Z` version, or a prerelease version when using a preview backend. Set `DEFAULT_RUNNER_VERSION` in [src/install.js](src/install.js) to this version and rebuild and commit `dist/`.
+2. Select a reviewed `main` commit with the updated pin and passing CI. Complete the required publishing approvals. Pushing a version tag starts publication immediately. Set `VERSION` and `REVIEWED_SHA`, then run:
 
    ```bash
    git tag -a "$VERSION" "$REVIEWED_SHA" -m "Release $VERSION"
