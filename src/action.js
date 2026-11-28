@@ -17,7 +17,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { installRunner } = require('./install');
+const { RELEASE_RUNNER_VERSION, installRunner } = require('./install');
 const { XMLValidator, XMLParser } = require('fast-xml-parser');
 const { writeSummary } = require('./summary');
 
@@ -114,7 +114,7 @@ async function validateJUnit(filename) {
   }
 }
 
-async function run(core) {
+async function run(core, install = installRunner) {
   const token = core.getInput('api-token');
   if (token) core.setSecret(token);
   if (!token) throw new ActionError('api-token is required; supply a GitHub secret.');
@@ -122,7 +122,6 @@ async function run(core) {
   const configPath = path.resolve(workspace, core.getInput('config-path') || 'thousandeyes-ci.json');
   await regularFile(configPath, 'config-path must reference an existing regular suite file.');
   const baseURL = apiBaseURL(core.getInput('api-base-url') || DEFAULT_API);
-  const version = inputAlias(core, 'runner-version', 'cli-version');
   const overrides = ['account-group-id', 'timeout', 'poll-interval'].map(name => [name, core.getInput(name)]);
   const root = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'thousandeyes-synthetics-'));
   const jsonPath = path.join(root, 'results.json');
@@ -135,12 +134,11 @@ async function run(core) {
     if (!path.isAbsolute(executable)) throw new ActionError('runner-path must be an absolute executable path.');
     await regularFile(executable, 'runner-path must reference an existing regular executable file.');
   } else {
-    if (!version) throw new ActionError('This preview requires runner-path or an exact published runner-version; no runner release is selected by default.');
     try {
-      const installed = await installRunner({ version, tempDirectory: root });
+      const installed = await install({ version: RELEASE_RUNNER_VERSION, tempDirectory: root });
       executable = installed.runnerPath;
       apiCLIPath ||= installed.apiCLIPath;
-    } catch { throw new ActionError('Could not install the pinned synthetic CI release; check runner-version and release availability.'); }
+    } catch { throw new ActionError('Could not install the pinned synthetic CI release; check release availability or supply runner-path.'); }
   }
   if (apiCLIPath) {
     if (!path.isAbsolute(apiCLIPath)) throw new ActionError('api-cli-path must be an absolute executable path.');

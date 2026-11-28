@@ -11,13 +11,8 @@ inputs:
   config-path:
     description: Repository suite JSON file, relative to the workspace or absolute.
     default: thousandeyes-ci.json
-  runner-version:
-    description: Exact published synthetic CI release version. This preview has no default release. Floating latest is not supported.
   runner-path:
     description: Absolute path to a preinstalled te-synthetics runner instead of downloading it.
-  cli-version:
-    description: Deprecated alias for runner-version.
-    deprecationMessage: Use runner-version for the portable synthetic CI release.
   cli-path:
     description: Deprecated alias for runner-path; the executable must be te-synthetics.
     deprecationMessage: Use runner-path for the portable te-synthetics executable.

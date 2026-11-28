@@ -49,7 +49,7 @@ The workflow builds the runner and loads the local Action from one pinned checko
 
 To check out this private source from another repository, add `TE_SYNTHETICS_READ_TOKEN` with **Contents: read** access and any required organization authorization. The application's `GITHUB_TOKEN` cannot read another private repository. Public or same-repository checkouts use the default token. Checkout disables persisted credentials; the ThousandEyes token is supplied only to the test step.
 
-The example uses `runner-path` and needs no published release. For `runner-version` requirements and private-download limits, see [release guidance](../RELEASING.md#consumer-version-pins).
+The source-build example uses `runner-path`. When upgrading from Action version `1.0.0`, remove the `runner-version` and `cli-version` inputs if present. The Action downloads its matching runner automatically. Use `runner-path` for a preinstalled runner. See [release guidance](../RELEASING.md#consumer-version-pins) for private-download limits.
 
 ### Inputs
 
@@ -58,13 +58,12 @@ The example uses `runner-path` and needs no published release. For `runner-versi
 | `api-token` | Required | ThousandEyes API bearer token from a secret. |
 | `config-path` | `thousandeyes-ci.json` | Suite file relative to the workspace, or absolute. |
 | `runner-path` | Empty | Absolute path to a managed `te-synthetics` executable. |
-| `runner-version` | Empty | Exact published release from this repository; required if no runner path is supplied. |
 | `api-cli-path` | Bundled backend | Absolute path to a compatible official API CLI override. |
 | `account-group-id` | Suite value | Override the account group. |
 | `timeout`, `poll-interval` | Suite values | Positive duration overrides such as `5m` and `5s`. |
 | `api-base-url` | `https://api.thousandeyes.com` | API origin; HTTP is permitted only for loopback test servers. |
 
-`cli-version` and `cli-path` are deprecated aliases for `runner-version` and `runner-path`. Conflicting aliases are rejected. [action.yml](../action.yml) defines the complete input and output contract.
+`cli-path` is a deprecated alias for `runner-path`. If you set both, they must match. [action.yml](../action.yml) defines the complete input and output contract.
 
 ### Outputs and reports
 
