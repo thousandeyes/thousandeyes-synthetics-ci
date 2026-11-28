@@ -343,7 +343,7 @@ const fs = __nccwpck_require__(1455);
 const os = __nccwpck_require__(8161);
 const path = __nccwpck_require__(6760);
 const { spawn } = __nccwpck_require__(1421);
-const { DEFAULT_RUNNER_VERSION, installRunner } = __nccwpck_require__(4515);
+const { RELEASE_RUNNER_VERSION, installRunner } = __nccwpck_require__(4515);
 const { XMLValidator, XMLParser } = __nccwpck_require__(591);
 const { writeSummary } = __nccwpck_require__(940);
 
@@ -448,7 +448,6 @@ async function run(core, install = installRunner) {
   const configPath = path.resolve(workspace, core.getInput('config-path') || 'thousandeyes-ci.json');
   await regularFile(configPath, 'config-path must reference an existing regular suite file.');
   const baseURL = apiBaseURL(core.getInput('api-base-url') || DEFAULT_API);
-  const version = inputAlias(core, 'runner-version', 'cli-version') || DEFAULT_RUNNER_VERSION;
   const overrides = ['account-group-id', 'timeout', 'poll-interval'].map(name => [name, core.getInput(name)]);
   const root = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'thousandeyes-synthetics-'));
   const jsonPath = path.join(root, 'results.json');
@@ -462,7 +461,7 @@ async function run(core, install = installRunner) {
     await regularFile(executable, 'runner-path must reference an existing regular executable file.');
   } else {
     try {
-      const installed = await install({ version, tempDirectory: root });
+      const installed = await install({ version: RELEASE_RUNNER_VERSION, tempDirectory: root });
       executable = installed.runnerPath;
       apiCLIPath ||= installed.apiCLIPath;
     } catch { throw new ActionError('Could not install the pinned synthetic CI release; check release availability or supply runner-path.'); }
@@ -527,7 +526,7 @@ const path = __nccwpck_require__(6760);
 const crypto = __nccwpck_require__(7598);
 
 const REPOSITORY = 'thousandeyes/thousandeyes-synthetics-ci';
-const DEFAULT_RUNNER_VERSION = '1.0.1';
+const RELEASE_RUNNER_VERSION = '1.0.1';
 const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const PLATFORMS = { linux: 'Linux', darwin: 'Darwin', win32: 'Windows' };
 const ARCHITECTURES = { x64: 'x86_64', arm64: 'arm64' };
@@ -654,7 +653,7 @@ async function installRunner({
   }
 }
 
-module.exports = { DEFAULT_RUNNER_VERSION, installRunner, releaseAsset, checksumForAsset };
+module.exports = { RELEASE_RUNNER_VERSION, installRunner, releaseAsset, checksumForAsset };
 
 
 /***/ }),

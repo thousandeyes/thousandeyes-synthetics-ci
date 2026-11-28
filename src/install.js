@@ -21,7 +21,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const REPOSITORY = 'thousandeyes/thousandeyes-synthetics-ci';
-const DEFAULT_RUNNER_VERSION = '1.0.1';
+const RELEASE_RUNNER_VERSION = '1.0.1';
 const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const PLATFORMS = { linux: 'Linux', darwin: 'Darwin', win32: 'Windows' };
 const ARCHITECTURES = { x64: 'x86_64', arm64: 'arm64' };
@@ -148,4 +148,4 @@ async function installRunner({
   }
 }
 
-module.exports = { DEFAULT_RUNNER_VERSION, installRunner, releaseAsset, checksumForAsset };
+module.exports = { RELEASE_RUNNER_VERSION, installRunner, releaseAsset, checksumForAsset };

@@ -17,7 +17,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { DEFAULT_RUNNER_VERSION, installRunner } = require('./install');
+const { RELEASE_RUNNER_VERSION, installRunner } = require('./install');
 const { XMLValidator, XMLParser } = require('fast-xml-parser');
 const { writeSummary } = require('./summary');
 
@@ -122,7 +122,6 @@ async function run(core, install = installRunner) {
   const configPath = path.resolve(workspace, core.getInput('config-path') || 'thousandeyes-ci.json');
   await regularFile(configPath, 'config-path must reference an existing regular suite file.');
   const baseURL = apiBaseURL(core.getInput('api-base-url') || DEFAULT_API);
-  const version = inputAlias(core, 'runner-version', 'cli-version') || DEFAULT_RUNNER_VERSION;
   const overrides = ['account-group-id', 'timeout', 'poll-interval'].map(name => [name, core.getInput(name)]);
   const root = await fs.mkdtemp(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'thousandeyes-synthetics-'));
   const jsonPath = path.join(root, 'results.json');
@@ -136,7 +135,7 @@ async function run(core, install = installRunner) {
     await regularFile(executable, 'runner-path must reference an existing regular executable file.');
   } else {
     try {
-      const installed = await install({ version, tempDirectory: root });
+      const installed = await install({ version: RELEASE_RUNNER_VERSION, tempDirectory: root });
       executable = installed.runnerPath;
       apiCLIPath ||= installed.apiCLIPath;
     } catch { throw new ActionError('Could not install the pinned synthetic CI release; check release availability or supply runner-path.'); }

@@ -23,7 +23,7 @@ const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
 const { Parser, HtmlRenderer } = require('commonmark');
 const { run } = require('../src/action');
-const { DEFAULT_RUNNER_VERSION } = require('../src/install');
+const { RELEASE_RUNNER_VERSION } = require('../src/install');
 
 const root = path.resolve(__dirname, '..');
 const entry = path.resolve(root, process.env.ACTION_ENTRY || 'src/index.js');
@@ -574,7 +574,6 @@ for (const [name, override] of [
   ['missing suite', { 'INPUT_CONFIG-PATH': 'does-not-exist.json' }],
   ['missing executable', { 'INPUT_RUNNER-PATH': path.join(os.tmpdir(), 'te-does-not-exist-41505') }],
   ['conflicting executable aliases', { 'INPUT_CLI-PATH': path.join(os.tmpdir(), 'different-runner') }],
-  ['conflicting version aliases', { 'INPUT_RUNNER-VERSION': '1.2.3', 'INPUT_CLI-VERSION': '1.2.4' }],
   ['relative API backend', { 'INPUT_API-CLI-PATH': 'thousandeyes' }],
   ['missing API backend', { 'INPUT_API-CLI-PATH': path.join(os.tmpdir(), 'missing-api-cli') }],
   ['API base containing credentials', { 'INPUT_API-BASE-URL': 'https://user:password@example.invalid' }]
@@ -596,27 +595,24 @@ test('deprecated runner path alias remains compatible', async (t) => {
   assert.equal(result.capture.script, 'run-tests');
 });
 
-test('downloads the Action’s pinned runner by default and accepts explicit overrides', async (t) => {
+test('downloads the runner pinned by the Action release', async (t) => {
   const f = await fixture(t);
-  for (const [overrides, expectedVersion] of [
-    [{}, DEFAULT_RUNNER_VERSION],
-    [{ 'runner-version': '1.0.0' }, '1.0.0'],
-    [{ 'cli-version': '1.0.0' }, '1.0.0']
-  ]) {
-    const inputs = { 'api-token': fakeToken, 'config-path': f.configPath, ...overrides };
-    const core = {
-      getInput: (name) => inputs[name] || '',
-      setSecret() {},
-      setOutput(name, value) {
-        if (name === 'json-report') {
-          t.after(() => fs.rm(path.dirname(value), { recursive: true, force: true }));
-        }
+  const inputs = { 'api-token': fakeToken, 'config-path': f.configPath };
+  const core = {
+    getInput: t.mock.fn((name) => inputs[name] || ''),
+    setSecret() {},
+    setOutput(name, value) {
+      if (name === 'json-report') {
+        t.after(() => fs.rm(path.dirname(value), { recursive: true, force: true }));
       }
-    };
-    const install = t.mock.fn(async () => { throw new Error('No network download in this test'); });
-    await assert.rejects(run(core, install), /Could not install the pinned synthetic CI release/);
-    assert.deepEqual(install.mock.calls.map((call) => call.arguments[0].version), [expectedVersion]);
-  }
+    }
+  };
+  const install = t.mock.fn(async () => { throw new Error('No network download in this test'); });
+  await assert.rejects(run(core, install), /Could not install the pinned synthetic CI release/);
+  assert.deepEqual(install.mock.calls.map((call) => call.arguments[0].version), [RELEASE_RUNNER_VERSION]);
+  const inputNames = core.getInput.mock.calls.map((call) => call.arguments[0]);
+  assert.ok(!inputNames.includes('runner-version'));
+  assert.ok(!inputNames.includes('cli-version'));
 });
 
 test('an explicit API backend reaches the portable runner without shell expansion', async (t) => {

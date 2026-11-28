@@ -38,6 +38,6 @@ The release bundles and runtime image contain both executables, the root `LICENS
 
 ## Integration configuration
 
-Use `runner-path` in the GitHub Action to select an installed `te-synthetics` executable. Once a runner release is published, `runner-version` can select an exact native bundle from this repository. Keep both executables together when installing a bundle. Use `api-cli-path` to select a separately managed backend that supports the required API contract.
+The GitHub Action downloads the native bundle pinned by its release. Use `runner-path` to select an installed `te-synthetics` executable. Keep both executables together when installing a bundle. Use `api-cli-path` to select a separately managed backend that supports the required API contract.
 
 See [suite configuration and results](configuration.md) and [platform setup](platforms.md) for the shared suite format, secret handling, report semantics, and integration examples.
